@@ -1,17 +1,22 @@
 import Play, {
   fullHouseRank,
   groupBySize,
-  isFlush,
   isFullHouse,
   isStraight,
   isSisters,
-  sameRank,
+  same,
   sortByRank
 } from './Play';
 import Card, { DECK } from './Card';
+import shuffle from '../utils/shuffle';
 
-const cardByName = name => DECK.find(c => c.name === name);
-const cardsByNames = (...names) => names.map(name => DECK.find(c => c.name === name));
+const cardsByNames = (...names) => {
+  return names.map(name => {
+    const card = DECK.find(c => c.name === name);
+    if (card == null) throw `Could not find card with name "${name}"`;
+    return card;
+  });
+}
 
 describe('Play', () => {
   describe('sortByRank(a, b)', () => {
@@ -24,18 +29,19 @@ describe('Play', () => {
     });
   });
 
-  describe('sameRank(cards)', () => {
+  describe('same(attr, cards)', () => {
     it('returns true if all cards have the same rank', () => {
       expect(
-        sameRank([])
+        same('rank', [])
       ).toBe(true);
 
       expect(
-        sameRank(cardsByNames('3 of Hearts'))
+        same('rank', cardsByNames('3 of Hearts'))
       ).toBe(true);
 
       expect(
-        sameRank(
+        same(
+          'rank',
           cardsByNames(
             '5 of Hearts',
             '5 of Spades',
@@ -48,7 +54,8 @@ describe('Play', () => {
 
     it('returns false if not all cards have the same rank', () => {
       expect(
-        sameRank(
+        same(
+          'rank',
           cardsByNames(
             '5 of Hearts',
             '6 of Hearts'
@@ -57,7 +64,8 @@ describe('Play', () => {
       ).toBe(false);
 
       expect(
-        sameRank(
+        same(
+          'rank',
           cardsByNames(
             '5 of Hearts',
             '5 of Spades',
@@ -201,41 +209,6 @@ describe('Play', () => {
     });
   });
 
-  describe('isFlush(cards)', () => {
-    it('returns true if all cards have the same suit', () => {
-      expect(
-        isFlush(
-          cardsByNames(
-            '3 of Hearts'
-          )
-        )
-      ).toBe(true);
-
-      expect(
-        isFlush(
-          cardsByNames(
-            '3 of Hearts',
-            '4 of Hearts',
-            '5 of Hearts'
-          )
-        )
-      ).toBe(true);
-    });
-
-    it("returns false if card's suit differs from the others", () => {
-      expect(
-        isFlush(
-          cardsByNames(
-            '3 of Hearts',
-            '4 of Diamonds',
-            '5 of Hearts',
-            '6 of Hearts'
-          )
-        )
-      ).toBe(false);
-    });
-  });
-
   describe('isFullHouse(cards)', () => {
     it('returns true if cards contains a pair and a triple', () => {
       expect(
@@ -274,6 +247,58 @@ describe('Play', () => {
             '5 of Hearts',
             '6 of Hearts',
             '7 of Hearts'
+          )
+        )
+      ).toBe(false);
+
+      expect(
+        isFullHouse(
+          cardsByNames(
+            '5 of Clubs',
+            '5 of Hearts',
+            '5 of Diamonds',
+
+            '3 of Hearts',
+            '10 of Diamonds'
+          )
+        )
+      ).toBe(false);
+
+      expect(
+        isFullHouse(
+          cardsByNames(
+            '5 of Clubs',
+            '10 of Hearts',
+            '5 of Diamonds',
+
+            '3 of Hearts',
+            '3 of Diamonds'
+          )
+        )
+      ).toBe(false);
+
+      expect(
+        isFullHouse(
+          cardsByNames(
+            '10 of Hearts',
+            '3 of Diamonds',
+
+            '5 of Clubs',
+            '5 of Hearts',
+            '5 of Diamonds'
+          )
+        )
+      ).toBe(false);
+
+      expect(
+        isFullHouse(
+          cardsByNames(
+            '3 of Hearts',
+            '3 of Diamonds',
+
+            '5 of Clubs',
+            '10 of Hearts',
+            '5 of Diamonds'
           )
         )
       ).toBe(false);
@@ -332,14 +357,169 @@ describe('Play', () => {
         ).toBe('BOMB');
       });
 
-      it('sisters', () => {
+      describe('sisters', () => {
+        it('pairs', () => {
+          expect(
+            type('3 of Clubs', '3 of Hearts', '4 of Hearts', '4 of Diamonds')
+          ).toBe('PAIRS_SISTERS_X2');
+
+          expect(
+            type('4 of Hearts', '4 of Diamonds', '3 of Clubs', '3 of Hearts')
+          ).toBe('PAIRS_SISTERS_X2');
+
+          expect(
+            type(
+              '3 of Clubs',
+              '3 of Hearts',
+
+              '4 of Hearts',
+              '4 of Diamonds',
+
+              '5 of Hearts',
+              '5 of Diamonds'
+            )
+          ).toBe('PAIRS_SISTERS_X3');
+
+          expect(
+            type(
+              '3 of Clubs',
+              '3 of Hearts',
+
+              '4 of Hearts',
+              '4 of Diamonds',
+
+              '5 of Hearts',
+              '5 of Diamonds',
+
+              '6 of Spades',
+              '6 of Clubs'
+            )
+          ).toBe('PAIRS_SISTERS_X4');
+
+          // Same as previous, shuffling cards to verify detection is not order
+          // dependent
+          expect(
+            type(
+              ...shuffle([
+                '3 of Clubs',
+                '3 of Hearts',
+
+                '4 of Hearts',
+                '4 of Diamonds',
+
+                '5 of Hearts',
+                '5 of Diamonds',
+
+                '6 of Spades',
+                '6 of Clubs'
+              ])
+            )
+          ).toBe('PAIRS_SISTERS_X4');
+        });
+
+        it('triples', () => {
+          expect(
+            type(
+              '3 of Clubs',
+              '3 of Hearts',
+              '3 of Spades',
+
+              '4 of Hearts',
+              '4 of Diamonds',
+              '4 of Clubs',
+            )
+          ).toBe('TRIPLES_SISTERS_X2');
+        });
+      });
+
+      it('straight flush', () => {
         expect(
-          type('3 of Clubs', '3 of Hearts', '4 of Hearts', '4 of Diamonds')
-        ).toBe('PAIRS_SISTERS_X2');
+          type('3 of Clubs', '4 of Clubs', '5 of Clubs', '6 of Clubs', '7 of Clubs')
+        ).toBe('STRAIGHT_FLUSH');
 
         expect(
-          type('4 of Hearts', '4 of Diamonds', '3 of Clubs', '3 of Hearts')
-        ).toBe('PAIRS_SISTERS_X2');
+          type('10 of Clubs', 'Jack of Clubs', 'Queen of Clubs', 'King of Clubs', 'Ace of Clubs')
+        ).toBe('STRAIGHT_FLUSH');
+      });
+
+      it('full house', () => {
+        expect(
+          type('3 of Clubs', '3 of Hearts', '5 of Clubs', '5 of Diamonds', '5 of Spades')
+        ).toBe('FULL_HOUSE');
+
+        expect(
+          type('Jack of Clubs', 'Jack of Hearts', 'Jack of Spades', '5 of Diamonds', '5 of Spades')
+        ).toBe('FULL_HOUSE');
+      });
+
+      it('straight', () => {
+        expect(
+          type(
+            '3 of Diamonds',
+            '4 of Clubs',
+            '5 of Clubs',
+            '6 of Clubs',
+            '7 of Clubs'
+          )
+        ).toBe('STRAIGHT_X5');
+
+        expect(
+          type(
+            '3 of Diamonds',
+            '4 of Clubs',
+            '5 of Clubs',
+            '6 of Clubs',
+            '7 of Clubs',
+            '8 of Clubs'
+          )
+        ).toBe('STRAIGHT_X6');
+
+        expect(
+          type(
+            '3 of Diamonds',
+            '4 of Clubs',
+            '5 of Clubs',
+            '6 of Clubs',
+            '7 of Clubs',
+            '8 of Clubs',
+            '9 of Clubs'
+          )
+        ).toBe('STRAIGHT_X7');
+
+        expect(
+          type(
+            '3 of Diamonds',
+            '4 of Clubs',
+            '5 of Clubs',
+            '6 of Clubs',
+            '7 of Clubs',
+            '8 of Clubs',
+            '9 of Clubs',
+            '10 of Clubs',
+            'Jack of Clubs',
+            'Queen of Clubs',
+            'King of Clubs',
+            'Ace of Clubs'
+          )
+        ).toBe('STRAIGHT_X12');
+
+        // TODO: @ddrscott is this right? There's no straight flush with >5 cards?
+        expect(
+          type(
+            '3 of Clubs',
+            '4 of Clubs',
+            '5 of Clubs',
+            '6 of Clubs',
+            '7 of Clubs',
+            '8 of Clubs',
+            '9 of Clubs',
+            '10 of Clubs',
+            'Jack of Clubs',
+            'Queen of Clubs',
+            'King of Clubs',
+            'Ace of Clubs'
+          )
+        ).toBe('STRAIGHT_X12');
       });
     });
   });
