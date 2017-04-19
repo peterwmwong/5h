@@ -8,8 +8,9 @@ const SUITS = [
 ];
 
 export default class Card {
-  constructor(rank, value, suit) {
+  constructor(rank, value, suit, singleRank=rank) {
     this.rank = rank;
+    this.singleRank = singleRank;
     this.suit = suit || '';
     this.id = this.name = suit ? `${value} of ${suit}` : value;
   }
@@ -20,7 +21,7 @@ export const DECK = [
     SUITS.map(suit => [
       new Card(0, '3', suit),
       new Card(1, '4', suit),
-      new Card(2, '5', suit),
+      new Card(2, '5', suit, suit === 'Hearts' ? 15 : 2),
       new Card(3, '6', suit),
       new Card(4, '7', suit),
       new Card(5, '8', suit),

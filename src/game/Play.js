@@ -56,6 +56,8 @@ export const typeForCards = cards => {
   }
 }
 
+const lastCard = cards => cards[cards.length - 1]
+
 export default class Play {
   constructor(cards/* :Card[] */) {
     this.cards = cards.sort(sortByRank);
@@ -64,10 +66,13 @@ export default class Play {
 
   isTrumpedBy({ cards, type }/* :Play */) /* :Boolean */ {
     if (this.type === type) {
-      if(this.type === 'FULL_HOUSE') {
-        return getFullHouseRank(this.cards) < getFullHouseRank(cards);
-      }
-      return this.cards[0].rank < cards[0].rank;
+      if (this.type === 'FULL_HOUSE')
+        return fullHouseRank(this.cards) < fullHouseRank(cards);
+
+      if (this.type === 'SINGLES')
+        return this.cards[0].singleRank < cards[0].singleRank;
+
+      return lastCard(this.cards).rank < lastCard(cards).rank
     }
     return type === 'BOMB' || type === 'STRAIGHT_FLUSH';
   }

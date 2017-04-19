@@ -10,13 +10,29 @@ import Play, {
 import Card, { DECK } from './Card';
 import shuffle from '../utils/shuffle';
 
-const cardsByNames = (...names) => {
-  return names.map(name => {
+const cardsByNames = (...names) =>
+  names.map(name => {
     const card = DECK.find(c => c.name === name);
     if (card == null) throw `Could not find card with name "${name}"`;
     return card;
   });
-}
+
+const playForCardNames = cardNames => new Play(cardsByNames(...cardNames));
+
+const BOMB_4_OF_A_KIND = [
+  '3 of Hearts',
+  '3 of Diamonds',
+  '3 of Spades',
+  '3 of Clubs'
+];
+
+const BOMB_STRAIGHT_FLUSH = [
+  '3 of Hearts',
+  '4 of Hearts',
+  '5 of Hearts',
+  '6 of Hearts',
+  '7 of Hearts'
+];
 
 describe('Play', () => {
   describe('sortByRank(a, b)', () => {
@@ -201,6 +217,19 @@ describe('Play', () => {
 
               '5 of Hearts',
               '5 of Diamonds'
+            ),
+            2
+          )
+        ).toBe(false);
+
+        expect(
+          isSisters(
+            cardsByNames(
+              '2 of Hearts',
+              '2 of Diamonds',
+
+              '3 of Hearts',
+              '3 of Diamonds'
             ),
             2
           )
@@ -521,6 +550,211 @@ describe('Play', () => {
           )
         ).toBe('STRAIGHT_X12');
       });
+    });
+  });
+
+  describe('isTrumpedBy(play)', () => {
+    expect.extend({
+      toTrump(received, argument) {
+        const pass = playForCardNames(argument).isTrumpedBy(playForCardNames(received));
+        let message = () => `expected [${received.join(', ')}] ${pass ? 'NOT ' : ''}to trump [${argument.join(', ')}]`;
+        return { pass, message };
+      }
+    });
+
+    it('singles', () => {
+      expect([ '2 of Clubs' ]).toTrump([ '3 of Clubs' ]);
+      expect([ '4 of Clubs' ]).toTrump([ '3 of Clubs' ]);
+      expect([ 'Jack of Clubs' ]).toTrump([ '10 of Clubs' ]);
+      expect([ 'Queen of Clubs' ]).toTrump([ 'Jack of Clubs' ]);
+      expect([ 'King of Clubs' ]).toTrump([ 'Queen of Clubs' ]);
+      expect([ 'Ace of Clubs' ]).toTrump([ 'King of Clubs' ]);
+      expect([ '2 of Clubs' ]).toTrump([ 'Ace of Clubs' ]);
+      expect([ 'Small Joker' ]).toTrump([ '2 of Clubs' ]);
+      expect([ 'Big Joker' ]).toTrump([ 'Small Joker' ]);
+      expect([ '5 of Hearts' ]).toTrump([ 'Big Joker' ]);
+
+      expect(BOMB_4_OF_A_KIND).toTrump([ '5 of Hearts' ]);
+      expect(BOMB_STRAIGHT_FLUSH).toTrump([ '5 of Hearts' ]);
+    });
+
+    it('pairs', () => {
+      expect([
+        '2 of Clubs', '2 of Spades'
+      ]).toTrump([
+        '3 of Clubs', '3 of Diamonds'
+      ]);
+
+      expect([
+        '4 of Clubs', '4 of Spades'
+      ]).toTrump([
+        '3 of Clubs', '3 of Diamonds'
+      ]);
+
+      expect([
+        '6 of Clubs', '6 of Spades'
+      ]).toTrump([
+        '5 of Hearts', '5 of Diamonds'
+      ]);
+
+      expect([
+        'Jack of Clubs', 'Jack of Spades'
+      ]).toTrump([
+        '10 of Clubs', '10 of Diamonds'
+      ]);
+
+      expect([
+        'Queen of Clubs', 'Queen of Spades'
+      ]).toTrump([
+        'Jack of Clubs', 'Jack of Diamonds'
+      ]);
+
+      expect([
+        'King of Clubs', 'King of Spades'
+      ]).toTrump([
+        'Queen of Clubs', 'Queen of Diamonds'
+      ]);
+
+      expect([
+        'Ace of Clubs', 'Ace of Spades'
+      ]).toTrump([
+        'King of Clubs', 'King of Diamonds'
+      ]);
+
+      expect([
+        '2 of Clubs', '2 of Spades'
+      ]).toTrump([
+        'Ace of Clubs', 'Ace of Diamonds'
+      ]);
+
+      expect(['2 of Clubs', '2 of Spades'])
+        .not.toTrump(BOMB_4_OF_A_KIND);
+      expect(['2 of Clubs', '2 of Spades'])
+        .not.toTrump(BOMB_STRAIGHT_FLUSH);
+    });
+
+    it('triples', () => {
+      expect([
+        '2 of Clubs', '2 of Spades', '2 of Diamonds'
+      ]).toTrump([
+        'Ace of Clubs', 'Ace of Diamonds', 'Ace of Hearts'
+      ]);
+
+      expect(['2 of Clubs', '2 of Spades', '2 of Diamonds'])
+        .not.toTrump(BOMB_4_OF_A_KIND);
+      expect(['2 of Clubs', '2 of Spades', '2 of Diamonds'])
+        .not.toTrump(BOMB_STRAIGHT_FLUSH);
+    });
+
+    it('bomb', () => {
+      expect([
+        '2 of Clubs', '2 of Hearts', '2 of Hearts', '2 of Diamonds'
+      ]).toTrump([
+        '3 of Clubs', '3 of Hearts', '3 of Hearts', '3 of Diamonds'
+      ]);
+      expect([
+        '4 of Clubs', '4 of Hearts', '4 of Hearts', '4 of Diamonds'
+      ]).toTrump([
+        '3 of Clubs', '3 of Hearts', '3 of Hearts', '3 of Diamonds'
+      ]);
+    });
+
+    it('sisters', () => {
+      expect([
+        '2 of Clubs', '2 of Hearts',
+        'Ace of Hearts', 'Ace of Diamonds'
+      ]).toTrump([
+        'Ace of Clubs', 'Ace of Hearts',
+        'King of Hearts', 'King of Diamonds'
+      ]);
+
+      expect([
+        '2 of Clubs', '2 of Hearts',
+        'Ace of Hearts', 'Ace of Diamonds',
+        'King of Hearts', 'King of Diamonds'
+      ]).toTrump([
+        'Ace of Clubs', 'Ace of Hearts',
+        'King of Hearts', 'King of Diamonds',
+        'Queen of Hearts', 'Queen of Diamonds'
+      ]);
+
+      expect([
+        '2 of Clubs', '2 of Hearts',
+        'Ace of Hearts', 'Ace of Diamonds'
+      ]).not.toTrump(BOMB_4_OF_A_KIND);
+
+      expect([
+        '2 of Clubs', '2 of Hearts',
+        'Ace of Hearts', 'Ace of Diamonds'
+      ]).not.toTrump(BOMB_STRAIGHT_FLUSH);
+    });
+
+    it('straight flush', () => {
+      expect([
+        '4 of Clubs', '5 of Clubs', '6 of Clubs', '7 of Clubs', '8 of Clubs'
+      ]).toTrump([
+        '3 of Clubs', '4 of Clubs', '5 of Clubs', '6 of Clubs', '7 of Clubs'
+      ]);
+    });
+
+    it('full house', () => {
+      expect([
+        'Jack of Clubs', 'Jack of Hearts', 'Jack of Spades',
+        '5 of Diamonds', '5 of Spades'
+      ]).toTrump([
+        '3 of Clubs', '3 of Hearts',
+        '5 of Clubs', '5 of Diamonds', '5 of Spades'
+      ]);
+
+      expect([
+        'Jack of Clubs', 'Jack of Hearts', 'Jack of Spades',
+        '5 of Diamonds', '5 of Spades'
+      ]).toTrump([
+        'King of Clubs', 'King of Hearts',
+        '5 of Clubs', '5 of Diamonds', '5 of Spades'
+      ]);
+
+      expect([
+        '2 of Clubs', '2 of Hearts', '2 of Spades',
+        'Ace of Hearts', 'Ace of Diamonds'
+      ]).not.toTrump(BOMB_4_OF_A_KIND);
+
+      expect([
+        '2 of Clubs', '2 of Hearts', '2 of Spades',
+        'Ace of Hearts', 'Ace of Diamonds'
+      ]).not.toTrump(BOMB_STRAIGHT_FLUSH);
+    });
+
+    it('straight', () => {
+      expect([
+        '4 of Clubs',
+        '5 of Clubs',
+        '6 of Clubs',
+        '7 of Clubs',
+        '8 of Diamonds'
+      ]).toTrump([
+        '3 of Diamonds',
+        '4 of Clubs',
+        '5 of Clubs',
+        '6 of Clubs',
+        '7 of Clubs'
+      ]);
+
+      expect([
+        '4 of Clubs',
+        '5 of Clubs',
+        '6 of Clubs',
+        '7 of Clubs',
+        '8 of Diamonds'
+      ]).not.toTrump(BOMB_4_OF_A_KIND);
+
+      expect([
+        '4 of Clubs',
+        '5 of Clubs',
+        '6 of Clubs',
+        '7 of Clubs',
+        '8 of Diamonds'
+      ]).not.toTrump(BOMB_STRAIGHT_FLUSH);
     });
   });
 });
